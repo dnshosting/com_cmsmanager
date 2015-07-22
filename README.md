@@ -30,10 +30,10 @@ In order to contribute to this project
 2. Install [Vagrant](http://www.vagrantup.com/)
 3. Run the following commands to run the vagrant-box:
 
-```bash
-vagrant plugin install vagrant-hostsupdater
-vagrant up
-```
+    ```bash
+    vagrant plugin install vagrant-hostsupdater
+    vagrant up
+    ```
 
 4. The administration dashboard is available at [joomla.box](http://joomla.box)
 
