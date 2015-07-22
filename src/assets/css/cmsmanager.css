@@ -1,0 +1,21 @@
+/*
+ * CMS Manager CSS
+ */
+
+body.com_cmsmanager .page-title {
+    background: url('../images/header/icon-36-cmsmanager.png') no-repeat 0 0px;
+    padding-left: 75px;
+}
+
+body.com_cmsmanager .page-title span.icon-eye-open {
+    display: none;
+}
+
+.jh-footer {
+    padding-top: 30px;
+    text-align: center;
+}
+
+div.cmsmanager-bootstrap input[disabled], div.cmsmanager-bootstrap select[disabled], div.cmsmanager-bootstrap textarea[disabled], div.cmsmanager-bootstrap input[readonly], div.cmsmanager-bootstrap select[readonly], div.cmsmanager-bootstrap textarea[readonly] {
+    cursor: pointer !important;
+}
