@@ -1,0 +1,21 @@
+### Intellij ###
+
+*.iml
+
+## Directory-based project format:
+.idea/
+
+## File-based project format:
+*.ipr
+*.iws
+
+### Vagrant ###
+.vagrant/
+Projects
+
+www/*
+!www/logs/tail
+!www/index.php
+
+### CMSManager ###
+com_cmsmanager_latest.*

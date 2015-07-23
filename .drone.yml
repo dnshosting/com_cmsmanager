@@ -1,0 +1,21 @@
+env:
+  - GIT_SSL_NO_VERIFY=true
+  - DEPLOY_SERVER=root@opsweb01
+  - DEPLOY_PATH=/srv-static/cdn-private/files/joomla/com_cmsmanager
+  - BUILD_BRANCH=$(echo $DRONE_BRANCH | sed 's@[/-]@_@')
+
+image: php
+
+script:
+  - sudo pear channel-discover pear.phing.info
+  - sudo pear install phing/phing
+  - phing
+  - mv extension.xml extension.$BUILD_BRANCH.xml
+  - mv com_cmsmanager_latest.tar.gz com_cmsmanager.$BUILD_BRANCH.tar.gz
+  - mv com_cmsmanager_latest.zip com_cmsmanager.$BUILD_BRANCH.zip
+
+deploy:
+  bash:
+    script:
+      - if [ $DRONE_BRANCH == "master" ]; then git remote add github git@github.com:dnshosting/com_cmsmanager.git; git push github master; fi
+      - scp com_cmsmanager.$BUILD_BRANCH.tar.gz com_cmsmanager.$BUILD_BRANCH.zip extension.$BUILD_BRANCH.xml $DEPLOY_SERVER:$DEPLOY_PATH

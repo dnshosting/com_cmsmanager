@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="CMS Manager" default="dist">
+
+    <!-- ============================================  -->
+    <!-- Target: prepare                               -->
+    <!-- ============================================  -->
+    <target name="prepare">
+        <echo msg="Making directory ./build" />
+        <exec command="rm ./com_cmsmanager_latest.zip ./com_cmsmanager_latest.tar.gz" escape ="false" />
+        <mkdir dir="./build" />
+    </target>
+
+    <fileset dir="src" id="allfiles">
+        <include name="admin/**" />
+        <include name="site/**" />
+        <include name="assets/**" />
+        <include name="install.cmsmanager.php" />
+        <include name="LICENSE.txt" />
+        <include name="cmsmanager.xml" />
+    </fileset>
+
+    <!-- ============================================  -->
+    <!-- Target: build                                 -->
+    <!-- ============================================  -->
+    <target name="build" depends="prepare">
+        <echo msg="Copying files to build directory..." />
+
+        <copy todir="./build">
+            <fileset refid="allfiles" />
+        </copy>
+
+        <!-- Installation package -->
+        <copy file="src/admin/install.cmsmanager.php" tofile="./build/install.cmsmanager.php" />
+        <copy file="src/admin/cmsmanager.xml" tofile="./build/cmsmanager.xml" />
+        <copy file="./LICENSE.txt" tofile="./build/LICENSE.txt" />
+        <copy file="./LICENSE.txt" tofile="./build/admin/LICENSE.txt" />
+    
+        <copy file="./src/admin/language/en-GB/en-GB.com_cmsmanager.ini" tofile="./build/admin/language/en-GB/en-GB.com_cmsmanager.sys.ini" />
+        <copy file="./src/admin/language/it-IT/it-IT.com_cmsmanager.ini" tofile="./build/admin/language/it-IT/it-IT.com_cmsmanager.sys.ini" />
+    </target>
+
+    <!-- ============================================  -->
+    <!-- (DEFAULT)  Target: dist                       -->
+    <!-- ============================================  -->
+    <target name="dist" depends="build">
+
+        <echo msg="Creating archive..." />
+
+        <zip destfile="./com_cmsmanager_latest.zip">
+            <fileset dir="./build">
+                <include name="**/**" />
+            </fileset>
+        </zip>
+
+        <tar destfile="./com_cmsmanager_latest.tar.gz" compression="gzip">
+            <fileset dir="./build">
+                <include name="*" />
+            </fileset>
+        </tar>
+
+        <exec command="rm -rf ./build" escape ="false" />
+
+        <echo msg="Files copied and compressed in build directory OK!" />
+    </target>
+
+</project>
