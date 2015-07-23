@@ -58,9 +58,19 @@ class CMSManagerController extends JControllerLegacy
         $url = $app->input->getString('url', '');
         $store = $app->input->getBool('store', true);
         $name = $app->input->getString('name', '');
+        $apc = $app->input->getBool('clearApc', false);
 
         // Checking credentials
         $this->checkToken();
+
+        // Clear APC cache
+        if($apc) {
+            if(function_exists("apc_clear_cache")) {
+                @apc_clear_cache();
+                @apc_clear_cache('user');
+                @apc_clear_cache('opcode');
+            }
+        }
 
         $this->cmsmanager = $cmsmanager = new CMSManager($store);
 
