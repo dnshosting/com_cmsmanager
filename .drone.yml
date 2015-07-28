@@ -17,5 +17,5 @@ script:
 deploy:
   bash:
     script:
-      - if [ $DRONE_BRANCH == "master" ]; then git remote add github git@github.com:dnshosting/com_cmsmanager.git; git push github master; fi
+      - if [ $DRONE_BRANCH == "master" ]; then git remote add github git@github.com:dnshosting/com_cmsmanager.git; git push --tags github master; fi
       - scp com_cmsmanager.$BUILD_BRANCH.tar.gz com_cmsmanager.$BUILD_BRANCH.zip extension.$BUILD_BRANCH.xml $DEPLOY_SERVER:$DEPLOY_PATH
