@@ -70,6 +70,9 @@ class CMSManagerController extends JControllerLegacy
                 @apc_clear_cache('user');
                 @apc_clear_cache('opcode');
             }
+            if(function_exists("opcache_reset")) {
+                @opcache_reset();
+            }
         }
 
         $this->cmsmanager = $cmsmanager = new CMSManager($store);
