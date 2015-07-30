@@ -30,6 +30,9 @@
             <fileset refid="allfiles" />
         </copy>
 
+        <!-- Backward compatibility Joomla 3.0 -->
+        <exec command="rm -rf ./build/admin/cmsmanager.xml" escape ="false" />
+
         <!-- Installation package -->
         <copy file="src/admin/install.cmsmanager.php" tofile="./build/install.cmsmanager.php" />
         <copy file="src/admin/cmsmanager.xml" tofile="./build/cmsmanager.xml" />
