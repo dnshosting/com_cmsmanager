@@ -9,13 +9,17 @@ image: php
 script:
   - sudo pear channel-discover pear.phing.info
   - sudo pear install phing/phing
+  - mkdir -p /build/buildd/php5-5.5.6+dfsg/pear-build-download
+  - sudo pear install phpdoc/phpDocumentor
   - phing
   - mv extension.xml extension.$BUILD_BRANCH.xml
   - mv com_cmsmanager_latest.tar.gz com_cmsmanager.$BUILD_BRANCH.tar.gz
   - mv com_cmsmanager_latest.zip com_cmsmanager.$BUILD_BRANCH.zip
+  - phpdoc -d ./src -t ./docs
 
 deploy:
   bash:
     script:
       - if [ $DRONE_BRANCH == "master" ]; then git remote add github git@github.com:dnshosting/com_cmsmanager.git; git push --tags github master; fi
+      - if [ $DRONE_BRANCH == "master" ]; then scp -r docs $DEPLOY_SERVER:$DEPLOY_PATH; fi
       - scp com_cmsmanager.$BUILD_BRANCH.tar.gz com_cmsmanager.$BUILD_BRANCH.zip extension.$BUILD_BRANCH.xml $DEPLOY_SERVER:$DEPLOY_PATH
