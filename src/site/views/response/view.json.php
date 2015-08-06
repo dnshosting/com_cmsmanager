@@ -76,7 +76,10 @@ class CMSManagerViewResponse extends JViewLegacy
 
         // Sign with JWT
         header('Content-type: application/json');
-        $this->app->close(json_encode(JWT::encode($this->data, $this->token)));
+
+        $jwt = JWT::encode($this->data, $this->token);
+        $encrypted = ApiCrypter::encrypt($jwt, substr($this->token, 0, 16));
+        $this->app->close(json_encode($encrypted));
     }
 
 }
