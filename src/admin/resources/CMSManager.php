@@ -673,11 +673,13 @@ class CMSManager
 
                 if ($elem->type == 'file') continue;
 
-                if ($manifest->authorEmail != "admin@joomla.org" || $elem->type == "template" || $elem->element == "pkg_weblinks") {
+                if ((property_exists($manifest, "authorEmail") && $manifest->authorEmail != "admin@joomla.org")
+                        || $elem->type == "template"
+                        || $elem->element == "pkg_weblinks") {
 
                     $ver = $manifest->version;
 
-                    if ($manifest->authorUrl) {
+                    if (property_exists($manifest, "authorUrl") && $manifest->authorUrl) {
                         $url = $manifest->authorUrl;
 
                         if (!self::startsWith($url, "http")) {
@@ -692,7 +694,7 @@ class CMSManager
                         $url = '';
                     }
 
-                    if ($manifest->creationDate) {
+                    if (property_exists($manifest, "creationDate") && $manifest->creationDate) {
                         $date = $manifest->creationDate;
                     } else {
                         $date = '';
