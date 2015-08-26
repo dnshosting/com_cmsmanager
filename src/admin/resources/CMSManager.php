@@ -673,9 +673,10 @@ class CMSManager
 
                 if ($elem->type == 'file') continue;
 
-                if ((property_exists($manifest, "authorEmail") && $manifest->authorEmail != "admin@joomla.org")
-                        || $elem->type == "template"
-                        || $elem->element == "pkg_weblinks") {
+                if (!property_exists($manifest, "authorEmail")
+                    || (property_exists($manifest, "authorEmail") && $manifest->authorEmail != "admin@joomla.org")
+                    || $elem->type == "template"
+                    || $elem->element == "pkg_weblinks") {
 
                     $ver = $manifest->version;
 
