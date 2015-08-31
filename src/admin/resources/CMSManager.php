@@ -233,6 +233,13 @@ class CMSManager
         // Extract package
         $package = JInstallerHelper::unpack($pkg);
 
+        if(!$package) {
+            // Add .zip extension to file
+            $zip = $pkg . ".zip";
+            JFile::move($pkg, $zip);
+            $package = JInstallerHelper::unpack($zip);
+        }
+
         // Install package
         if ($installer->install($package['dir'])) {
             $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_INSTALL_OK', $pkg);
@@ -488,7 +495,15 @@ class CMSManager
         $tmp_dest = $config->get('tmp_path');
 
         // Unpack the downloaded package file
-        $package = JInstallerHelper::unpack($tmp_dest . '/' . $p_file);
+        $pkg = $tmp_dest . '/' . $p_file;
+        $package = JInstallerHelper::unpack($pkg);
+
+        if(!$package) {
+            // Add .zip extension to file
+            $zip = $pkg . ".zip";
+            JFile::move($pkg, $zip);
+            $package = JInstallerHelper::unpack($zip);
+        }
 
         // Unpack package
         if (!$package) {
