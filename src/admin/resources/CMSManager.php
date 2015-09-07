@@ -60,6 +60,122 @@ class CMSManager
     }
 
     /**
+     * Enable backup
+     *
+     * @return bool true if success, false otherwise
+     */
+    public function enableBackup() {
+        $this->log = new CMSManagerLogger(__FUNCTION__, "", $this->store);
+        return $this->enableAkeeebaBackup();
+    }
+
+    /**
+     * Enable Akeeba Remote Backup
+     *
+     * @return bool true if success, false otherwise
+     */
+    private function enableAkeeebaBackup() {
+
+        if ( ! file_exists(JPATH_ADMINISTRATOR . '/components/com_akeeba/version.php')) {
+            $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_AKEEBA_NOT_FOUND');
+            $log->setError();
+            $this->log->addLog($log);
+
+            return false;
+        }
+
+        $params = JComponentHelper::getParams('com_akeeba');
+
+        $update = false;
+
+        // Enable frontend if is disabled
+        if ( ! $params->get('frontend_enable')) {
+            $params->set("frontend_enable", 1);
+            $update = true;
+        }
+
+        // Generate secret word if is empty
+        if(!$params->get('frontend_secret_word')) {
+            $params->set('frontend_secret_word', $this->generateRandomString());
+            $update = true;
+        }
+
+        $site = new CMSManagerSite();
+        // Check if CMS Manager Akeeba Profile exist
+        if($site->getAkeebaProfile() == 0) {
+
+            $app = JFactory::getApplication();
+            $db =  JFactory::getDbo();
+            $prefix = $app->getCfg('dbprefix');
+
+            $tables = $db->getTableList();
+
+            // Check if backup table exist
+            if (!in_array($prefix . "ak_profiles", $tables))
+                return false;
+
+            // Get default Akeeba profile
+            $query = "SELECT `configuration` FROM `#__ak_profiles` WHERE `id` = 1";
+            JFactory::getDbo()->setQuery($query);
+
+            try {
+                $result = $db->loadResult();
+
+                if(!$result) return false;
+
+                $profile = "CMS Manager Backup Profile";
+                $query = $db->getQuery(true);
+
+                // Clone default Akeeba profile without filters
+                $columns = array('description', 'configuration', 'filters');
+                $values = array($db->quote($profile), $db->quote($result), $db->quote(""));
+
+                $query
+                    ->insert($db->quoteName('#__ak_profiles'))
+                    ->columns($db->quoteName($columns))
+                    ->values(implode(',', $values));
+
+                $db->setQuery($query);
+                $db->execute();
+
+            } catch (Exception $e) {
+                return false;
+            }
+
+        }
+
+
+        if($update) {
+            // Get a new database query instance
+            $db = JFactory::getDBO();
+            $query = $db->getQuery(true);
+
+            // Build the query
+            $query->update('#__extensions AS a');
+            $query->set('a.params = ' . $db->quote((string)$params));
+            $query->where('a.element = "com_akeeba"');
+
+            // Execute the query
+            $db->setQuery($query);
+            $db->query();
+
+            $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_AKEEBA_REMOTE_BACKUP_ENABLED', '');
+            $this->log->addLog($log);
+        }
+
+        return true;
+    }
+
+    /**
+     * Generate random string
+     * @param int $length
+     * @return string
+     */
+    function generateRandomString($length = 16) {
+        return substr(str_shuffle(str_repeat('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',$length)),0,$length);
+    }
+
+    /**
      * Download and install an extension given the publishing URL.
      *
      * @param $url string the extension publishing url.

@@ -77,7 +77,7 @@ class CMSManagerLog
     {
         try {
 
-            JFactory::getDbo()->insertObject('#__cmsmanager_logs', $this->getObject(), 'id');
+            @JFactory::getDbo()->insertObject('#__cmsmanager_logs', $this->getObject(), 'id');
             return true;
 
         } catch (Exception $e) {

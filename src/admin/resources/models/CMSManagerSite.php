@@ -63,6 +63,16 @@ class CMSManagerSite
     public $osExtended;
 
     /**
+     * @var string Akeeba Secret
+     */
+    public $akeebaSecret;
+
+    /**
+     * @var int Akeeba profile for CMS Manager
+     */
+    public $akeebaProfile = 0;
+
+    /**
      * @var JVersion the installed version of Joomla
      */
     private $jversion;
@@ -97,6 +107,8 @@ class CMSManagerSite
         $this->os = PHP_OS;
         $this->osExtended = php_uname();
         $this->latestBackup = $this->getLatestBackupInfo();
+        $this->akeebaSecret = $this->getAkeebaSecretKey();
+        $this->akeebaProfile = $this->getAkeebaCMSManagerProfile();
     }
 
     /**
@@ -148,6 +160,50 @@ class CMSManagerSite
         } catch (Exception $e) {
             return null;
         }
+    }
+
+    /**
+     * Get first backup profile for CMS Manager from Akeeba
+     *
+     * @return string latest backup date
+     */
+    public function getAkeebaCMSManagerProfile()
+    {
+        $app = JFactory::getApplication();
+        $prefix = $app->getCfg('dbprefix');
+
+        $tables = JFactory::getDbo()->getTableList();
+
+        // Check if backup table exist
+        if (!in_array($prefix . "ak_profiles", $tables))
+            return 0;
+
+        $query = "SELECT `id` FROM `#__ak_profiles` WHERE `description` = 'CMS Manager Backup Profile' ORDER BY `id` ASC LIMIT 0,1";
+        $this->db->setQuery($query);
+
+        try {
+            $result = $this->db->loadResult();
+            return $result ? (int) $result : 0;
+        } catch (Exception $e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Get Akeeba Secret Key
+     *
+     * @return string akeeba key
+     */
+    private function getAkeebaSecretKey()
+    {
+        if ( ! file_exists(JPATH_ADMINISTRATOR . '/components/com_akeeba/version.php'))
+            return null;
+
+        $params = JComponentHelper::getParams('com_akeeba');
+        if ( ! $params->get('frontend_enable'))
+            return null;
+
+        return $params->get('frontend_secret_word');
     }
 
     // #############################################################################
@@ -294,6 +350,38 @@ class CMSManagerSite
     public function setOs($os)
     {
         $this->os = $os;
+    }
+
+    /**
+     * @return string
+     */
+    public function getAkeebaSecret()
+    {
+        return $this->akeebaSecret;
+    }
+
+    /**
+     * @param string $akeebaSecret
+     */
+    public function setAkeebaSecret($akeebaSecret)
+    {
+        $this->akeebaSecret = $akeebaSecret;
+    }
+
+    /**
+     * @return int
+     */
+    public function getAkeebaProfile()
+    {
+        return $this->akeebaProfile;
+    }
+
+    /**
+     * @param int $akeebaProfile
+     */
+    public function setAkeebaProfile($akeebaProfile)
+    {
+        $this->akeebaProfile = $akeebaProfile;
     }
 
 }

@@ -115,6 +115,14 @@ class CMSManagerController extends JControllerLegacy
             $cmsmanager->fixDb();
         } else if ($cmd == 'removeExtension') {
             $cmsmanager->removeExtension($name) ? $this->view->code = 204 : $this->view->code = 500;
+        } else if ($cmd == 'enableBackup') {
+            if($cmsmanager->enableBackup()) {
+                $this->view->code = 200;
+                $this->view->data = "OK";
+            } else {
+                $this->view->code = 404;
+                $this->view->data = "COM_CMSMANAGER_AKEEBA_NOT_FOUND";
+            }
         } else {
             $this->view->code = 404;
             $this->view->data = "COM_CMSMANAGER_ACTION_NOT_FOUND";
