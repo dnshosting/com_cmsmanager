@@ -144,7 +144,6 @@ class CMSManager
 
         }
 
-
         if($update) {
             // Get a new database query instance
             $db = JFactory::getDBO();
@@ -799,8 +798,10 @@ class CMSManager
         foreach ($data as $elem) {
             $manifest = json_decode($elem->manifest_cache);
 
-            // Excluding the core extensions
-            if ($manifest != null) {
+            // Excluding the core extensions.
+            // Include weblinks component: https://github.com/joomla-extensions/weblinks
+            // In some case, pkg_weblinks has empty manifest.
+            if ($manifest != null || $elem->element == "pkg_weblinks") {
 
                 if ($elem->type == 'file') continue;
 
