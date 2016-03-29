@@ -131,8 +131,24 @@ class CMSManagerController extends JControllerLegacy
             $cmsmanager->discoverExtension();
             $cmsmanager->installDiscoveredExtension();
         } else if ($cmd == 'fixDb') {
-            $cmsmanager->fixDb();
-        } else if ($cmd == 'removeExtension') {
+            $container = new \stdClass();
+
+            if(!$cmsmanager->fixDb())
+            {
+                $this->view->code = 500;
+                $container->logs = $cmsmanager->getLog()->getLogs();
+                $container->status = "KO";
+            }
+            else
+            {
+                $this->view->code = 200;
+                $container->logs = $cmsmanager->getLog()->getLogs();
+                $container->status = "OK";
+            }
+
+            $this->view->data = $container;
+        }
+        else if ($cmd == 'removeExtension') {
             $cmsmanager->removeExtension($name) ? $this->view->code = 204 : $this->view->code = 500;
         } else if ($cmd == 'enableBackup') {
             if($cmsmanager->enableBackup()) {

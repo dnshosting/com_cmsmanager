@@ -144,6 +144,7 @@ class CMSManager
 
         }
 
+
         if($update) {
             // Get a new database query instance
             $db = JFactory::getDBO();
@@ -1199,7 +1200,34 @@ ENDDATA;
         JLoader::register('InstallerModelDatabase', JPATH_ADMINISTRATOR . DS . 'components' . DS . 'com_installer' . DS . 'models' . DS . 'database.php');
         $my = new InstallerModelDatabase();
 
-        $my->fix();
+        // Ok let's wrap everything in a try-catch statement AND read from the app queue
+        try
+        {
+            $result = $my->fix();
+            
+            // Sadly "fix" method returns false/null :(
+            if($result === false)
+            {
+                $result = false;
+                
+                $app = JFactory::getApplication();
+                $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_FIXDB', $app->getMessageQueue());
+
+                $this->log->addLog($log);
+            }
+            else
+            {
+                $result = true;
+            }
+        }
+        catch (Exception $e)
+        {
+            $result = false;
+            $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_FIXDB', $e->getMessage());
+            $this->log->addLog($log);
+        }
+        
+        return $result;
     }
 
     /**
@@ -1239,10 +1267,8 @@ ENDDATA;
         foreach ($data as $elem) {
             $manifest = json_decode($elem->manifest_cache);
 
-            // Excluding the core extensions.
-            // Include weblinks component: https://github.com/joomla-extensions/weblinks
-            // In some case, pkg_weblinks has empty manifest.
-            if ($manifest != null || $elem->element == "pkg_weblinks") {
+            // Excluding the core extensions
+            if ($manifest != null) {
 
                 if ($elem->type == 'file') continue;
 
