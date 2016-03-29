@@ -108,7 +108,26 @@ class CMSManagerController extends JControllerLegacy
             }
 
             $this->view->data = $container;
-        } else if ($cmd == 'discoverAndInstallExtensions') {
+        }
+        else if($cmd == 'finaliseJoomlaUpdate')
+        {
+            $container = new \stdClass();
+
+            // If anything goes wrong, return an INTERNAL_SERVER_ERROR
+            // plus some log messages
+            if (@!$cmsmanager->finaliseJoomlaUpdate()) {
+                $this->view->code = 500;
+                $container->logs = $cmsmanager->getLog()->getLogs();
+                $container->status = "KO";
+            } else {
+                $this->view->code = 200;
+                $container->logs = $cmsmanager->getLog()->getLogs();
+                $container->status = "OK";
+            }
+
+            $this->view->data = $container;
+        }
+        else if ($cmd == 'discoverAndInstallExtensions') {
             $cmsmanager->discoverExtension();
             $cmsmanager->installDiscoveredExtension();
         } else if ($cmd == 'fixDb') {

@@ -1,9 +1,9 @@
 <extension type="component" version="2.5" method="upgrade">
 
     <name>CMS Manager</name>
-    <version>1.6.0</version>
+    <version>1.7.0</version>
     <description>COM_CMSMANAGER_XML_DESCRIPTION</description>
-    <creationDate>2015-06-18</creationDate>
+    <creationDate>2016-03-29</creationDate>
     <author>COLT Engine S.R.L.</author>
     <authorEmail>info@joomlahost.it</authorEmail>
     <authorUrl>https://www.joomlahost.it</authorUrl>

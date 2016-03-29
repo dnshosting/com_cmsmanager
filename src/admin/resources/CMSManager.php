@@ -2,7 +2,7 @@
 
 /**
  * @package     CMS Manager
- * @author      COLT Engine S.R.L. <andrea.sosso@dnshosting.it>
+ * @author      COLT Engine S.R.L.
  * @authorUrl   https://www.joomlahost.it
  *
  * @copyright   Copyright (C) 2015 COLT Engine s.r.l, All rights reserved.
@@ -557,10 +557,24 @@ class CMSManager
         $instance->load($uid);
         @$update->loadFromXML($instance->detailsurl);
 
-        // install sets state and enqueues messages
-        $res = $this->installSingleUpdate($update);
+        if($uid === 1 || $uid === "1")
+        {
+            // install sets state and enqueues messages
+            $res = $this->installJoomlaUpdate($update);
 
-        if ($res) {
+            if($res)
+            {
+                $this->cleanupJoomlaUpdate();
+            }
+        }
+        else
+        {
+            // install sets state and enqueues messages
+            $res = $this->installSingleUpdate($update);
+        }
+
+        if ($res)
+        {
             $instance->delete($uid);
         }
 
@@ -573,6 +587,433 @@ class CMSManager
             $log->setError();
 
         return $res;
+    }
+
+    /**
+     * Install a Joomla update.
+     *
+     * @param $update JUpdate the update that has to be installed.
+     *
+     * @return boolean true on success.
+     */
+    private function installJoomlaUpdate($update)
+    {
+        // Fetch download url from update site
+        if (isset($update->get('downloadurl')->_data))
+        {
+            $url = trim($update->downloadurl->_data);
+        }
+        else
+        {
+            $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_FETCH_UPDATE_URL_FAILED', $update);
+            $log->setError();
+            $this->log->addLog($log);
+
+            return false;
+        }
+
+        // Download package
+        $p_file = self::downloadPackage($url);
+
+        // Was the package downloaded?
+        if (!$p_file)
+        {
+            $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_PACKAGE_DOWNLOAD_FAILED', $url);
+            $log->setError();
+            $this->log->addLog($log);
+
+            return false;
+        }
+
+        $password = JUserHelper::genRandomPassword(32);
+        $method = 'direct';
+
+        // Get the absolute path to site's root.
+        $siteroot = JPATH_SITE;
+
+        // Get the package name.
+        $config = JFactory::getConfig();
+        $tempdir = $config->get('tmp_path');
+        $file = $tempdir . '/' . $p_file;
+
+        $data = "<?php\ndefined('_AKEEBA_RESTORATION') or die('Restricted access');\n";
+        $data .= '$restoration_setup = array(' . "\n";
+        $data .= <<<ENDDATA
+    'kickstart.security.password' => '$password',
+    'kickstart.tuning.max_exec_time' => '5',
+    'kickstart.tuning.run_time_bias' => '75',
+    'kickstart.tuning.min_exec_time' => '0',
+    'kickstart.procengine' => '$method',
+    'kickstart.setup.sourcefile' => '$file',
+    'kickstart.setup.destdir' => '$siteroot',
+    'kickstart.setup.restoreperms' => '0',
+    'kickstart.setup.filetype' => 'zip',
+    'kickstart.setup.dryrun' => '0'
+ENDDATA;
+
+        $data .= ');';
+
+        // Make sure Akeeba Restore is loaded - Get any message created by the restore file or the result
+        // string will be invalid
+        ob_start();
+        require_once JPATH_ADMINISTRATOR . '/components/com_joomlaupdate/restore.php';
+        ob_end_clean();
+
+        // Remove the old file, if it's there...
+        $configpath = JPATH_ROOT . '/administrator/components/com_joomlaupdate/restoration.php';
+
+        if (JFile::exists($configpath))
+        {
+            JFile::delete($configpath);
+        }
+
+        // Write new file. First try with JFile.
+        $result = JFile::write($configpath, $data);
+
+        require_once JPATH_ADMINISTRATOR . '/components/com_joomlaupdate/restoration.php';
+
+        $overrides = array(
+            'rename_files' => array('.htaccess' => 'htaccess.bak'),
+            'skip_files'   => array(),
+            'reset'        => true
+        );
+
+        AKFactory::nuke();
+
+        $siteroot = JPATH_SITE;
+        $siteroot = str_replace('\\', '/', $siteroot);
+
+        $restoration_setup = array(
+            'kickstart.tuning.max_exec_time' => '5',
+            'kickstart.tuning.run_time_bias' => '75',
+            'kickstart.tuning.min_exec_time' => '0',
+            'kickstart.procengine'           => 'direct',
+            'kickstart.setup.sourcefile'     => $file,
+            'kickstart.setup.destdir'        => $siteroot,
+            'kickstart.setup.restoreperms'   => '0',
+            'kickstart.setup.filetype'       => 'zip',
+            'kickstart.setup.dryrun'         => '0'
+        );
+
+        foreach ($restoration_setup as $key => $value)
+        {
+            AKFactory::set($key, $value);
+        }
+
+        AKFactory::set('kickstart.enabled', true);
+        $engine = AKFactory::getUnarchiver($overrides);
+        $engine->tick();
+        $ret = $engine->getStatusArray();
+
+        while ($ret['HasRun'] && !$ret['Error'])
+        {
+            $timer = AKFactory::getTimer();
+            $timer->resetTime();
+            $engine->tick();
+            $ret = $engine->getStatusArray();
+        }
+
+        // Finally I can cleanup the ZIP archive (I don't need it anymore)
+        JFile::delete($tempdir . '/' . $p_file);
+
+        return $result;
+    }
+
+    /**
+     * Post-update clean up
+     * 
+     * @return  void
+     */
+    private function cleanupJoomlaUpdate()
+    {
+        JLoader::import('joomla.filesystem.file');
+        JLoader::import('joomla.filesystem.folder');
+
+        // Remove the restoration.php file
+        JLoader::import('joomla.filesystem.file');
+
+        $configpath = JPATH_ROOT.'/administrator/components/com_joomlaupdate/restoration.php';
+
+        if (file_exists($configpath))
+        {
+            if (!@unlink($configpath))
+            {
+                JFile::delete($configpath);
+            }
+        }
+    }
+    
+    public function finaliseJoomlaUpdate()
+    {
+        $this->log = new CMSManagerLogger(__FUNCTION__, "", $this->store);
+        $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_UPDATE');
+
+        $this->log->addLog($log);
+        
+        try{
+            $this->runJoomlaUpdateScripts();
+        }
+        catch(Exception $e)
+        {
+            $log->setError($e->getMessage());
+            
+            return false;
+        }
+        
+        return true;
+    }
+
+    private function runJoomlaUpdateScripts()
+    {
+        JLoader::import('joomla.installer.install');
+        $installer = JInstaller::getInstance();
+
+        $sourcePath = JPATH_ROOT;
+
+        $cachedManifest = $installer->isManifest(JPATH_MANIFESTS . '/files/joomla.xml');
+
+        if ($cachedManifest !== false)
+        {
+            $installer->manifest = $cachedManifest;
+            $installer->setPath('manifest', JPATH_MANIFESTS . '/files/joomla.xml');
+            $sourcePath = JPATH_MANIFESTS . '/files';
+        }
+
+        $installer->setUpgrade(true);
+        $installer->setOverwrite(true);
+
+        $installer->setPath('source', $sourcePath);
+        $installer->setPath('extension_root', JPATH_ROOT);
+
+        if (!$installer->setupInstall())
+        {
+            $installer->abort(JText::_('JLIB_INSTALLER_ABORT_DETECTMANIFEST'));
+
+            throw new Exception(JText::_('JLIB_INSTALLER_ABORT_DETECTMANIFEST'));
+        }
+
+        $installer->extension = JTable::getInstance('extension');
+        $installer->extension->load(700);
+        $installer->setAdapter($installer->extension->type);
+
+        $manifest = $installer->getManifest();
+
+        $manifestPath = JPath::clean($installer->getPath('manifest'));
+        $element = preg_replace('/\.xml/', '', basename($manifestPath));
+
+        // Run the script file
+        $manifestScript = (string)$manifest->scriptfile;
+
+        if ($manifestScript)
+        {
+            $manifestScriptFile = JPATH_ROOT . '/' . $manifestScript;
+
+            if (is_file($manifestScriptFile))
+            {
+                // load the file
+                include_once $manifestScriptFile;
+            }
+
+            $classname = 'JoomlaInstallerScript';
+
+            if (class_exists($classname))
+            {
+                $manifestClass = new $classname($installer);
+            }
+        }
+
+        ob_start();
+        ob_implicit_flush(false);
+
+        if (isset($manifestClass) && !empty($manifestClass) && method_exists($manifestClass, 'preflight'))
+        {
+            if ($manifestClass->preflight('update', $installer) === false)
+            {
+                $installer->abort(JText::_('JLIB_INSTALLER_ABORT_FILE_INSTALL_CUSTOM_INSTALL_FAILURE'));
+
+                throw new Exception(JText::_('JLIB_INSTALLER_ABORT_FILE_INSTALL_CUSTOM_INSTALL_FAILURE'));
+            }
+        }
+
+        $msg = ob_get_contents(); // create msg object; first use here
+        ob_end_clean();
+
+        $db = JFactory::getDbo();
+
+        // Check to see if a file extension by the same name is already installed
+        // If it is, then update the table because if the files aren't there
+        // we can assume that it was (badly) uninstalled
+        // If it isn't, add an entry to extensions
+        $query = $db->getQuery(true);
+        $query->select($query->qn('extension_id'))
+              ->from($query->qn('#__extensions'))
+              ->where($query->qn('type') . ' = ' . $query->q('file'))
+              ->where($query->qn('element') . ' = ' . $query->q('joomla'));
+        $db->setQuery($query);
+
+        try
+        {
+            $db->execute();
+        }
+        catch (Exception $e)
+        {
+            $err = method_exists($db, 'stderr') ? $db->stderr(true) : $e->getMessage();
+
+            // Install failed, roll back changes
+            $installer->abort(
+                JText::sprintf('JLIB_INSTALLER_ABORT_FILE_ROLLBACK', JText::_('JLIB_INSTALLER_UPDATE'), $err)
+            );
+
+            throw new Exception(JText::sprintf('JLIB_INSTALLER_ABORT_FILE_ROLLBACK', JText::_('JLIB_INSTALLER_UPDATE'), $err));
+        }
+
+        $id = $db->loadResult();
+
+        /** @var JTableExtension $row */
+        $row = JTable::getInstance('extension');
+
+        if ($id)
+        {
+            // Load the entry and update the manifest_cache
+            $row->load($id);
+            // Update name
+            $row->set('name', 'files_joomla');
+            // Update manifest
+            $row->manifest_cache = $installer->generateManifestCache();
+
+            if (!$row->store())
+            {
+                // Install failed, roll back changes
+                $err = method_exists($db, 'stderr') ? $db->stderr(true) : $row->getError();
+
+                $installer->abort(
+                    JText::sprintf('JLIB_INSTALLER_ABORT_FILE_ROLLBACK', JText::_('JLIB_INSTALLER_UPDATE'), $err)
+                );
+
+                throw new Exception(JText::sprintf('JLIB_INSTALLER_ABORT_FILE_ROLLBACK', JText::_('JLIB_INSTALLER_UPDATE'), $err));
+            }
+        }
+        else
+        {
+            // Add an entry to the extension table with a whole heap of defaults
+            $row->set('name', 'files_joomla');
+            $row->set('type', 'file');
+            $row->set('element', 'joomla');
+            // There is no folder for files so leave it blank
+            $row->set('folder', '');
+            $row->set('enabled', 1);
+            $row->set('protected', 0);
+            $row->set('access', 0);
+            $row->set('client_id', 0);
+            $row->set('params', '');
+            $row->set('system_data', '');
+            $row->set('manifest_cache', $installer->generateManifestCache());
+
+            if (!$row->store())
+            {
+                // Install failed, roll back changes
+                $err = method_exists($db, 'stderr') ? $db->stderr(true) : $row->getError();
+
+                $installer->abort(JText::sprintf('JLIB_INSTALLER_ABORT_FILE_INSTALL_ROLLBACK', $err));
+
+                throw new Exception(JText::sprintf('JLIB_INSTALLER_ABORT_FILE_INSTALL_ROLLBACK', $err));
+            }
+
+            // Set the insert id
+            $row->set('extension_id', $db->insertid());
+
+            // Since we have created a module item, we add it to the installation step stack
+            // so that if we have to rollback the changes we can undo it.
+            $installer->pushStep(array('type' => 'extension', 'extension_id' => $row->extension_id));
+        }
+
+        /*
+         * Let's run the queries for the file
+         */
+        if ($manifest->update)
+        {
+            $result = $installer->parseSchemaUpdates($manifest->update->schemas, $row->extension_id);
+
+            if ($result === false)
+            {
+                // Install failed, rollback changes
+                $installer->abort(JText::sprintf('JLIB_INSTALLER_ABORT_FILE_UPDATE_SQL_ERROR', $db->stderr(true)));
+
+                throw new Exception(JText::sprintf('JLIB_INSTALLER_ABORT_FILE_UPDATE_SQL_ERROR', $db->stderr(true)));
+            }
+        }
+
+        // Start Joomla! 1.6
+        ob_start();
+        ob_implicit_flush(false);
+
+        if ($manifestClass && method_exists($manifestClass, 'update'))
+        {
+            if ($manifestClass->update($installer) === false)
+            {
+                // Install failed, rollback changes
+                $installer->abort(JText::_('JLIB_INSTALLER_ABORT_FILE_INSTALL_CUSTOM_INSTALL_FAILURE'));
+
+                throw new Exception(JText::_('JLIB_INSTALLER_ABORT_FILE_INSTALL_CUSTOM_INSTALL_FAILURE'));
+            }
+        }
+
+        $msg .= ob_get_contents(); // append messages
+        ob_end_clean();
+
+        // Lastly, we will copy the manifest file to its appropriate place IF it's not already in the manifest cache
+        $manifest = array();
+        $manifest['src'] = $installer->getPath('manifest');
+        $manifest['dest'] = JPATH_MANIFESTS . '/files/' . basename($installer->getPath('manifest'));
+
+        $cleanSource = JPath::clean($manifest['src']);
+        $cleanDest   = JPath::clean($manifest['dest']);
+
+        if (($cleanSource != $cleanDest) && !$installer->copyFiles(array($manifest), true))
+        {
+            // Install failed, rollback changes
+            $installer->abort(JText::_('JLIB_INSTALLER_ABORT_FILE_INSTALL_COPY_SETUP'));
+
+            throw new Exception(JText::_('JLIB_INSTALLER_ABORT_FILE_INSTALL_COPY_SETUP'));
+        }
+
+        // Clobber any possible pending updates
+        $update = JTable::getInstance('update');
+        $uid = $update->find(
+            array('element' => $element, 'type' => 'file', 'client_id' => '', 'folder' => '')
+        );
+
+        if ($uid)
+        {
+            $update->delete($uid);
+        }
+
+        // And now we run the postflight
+        ob_start();
+        ob_implicit_flush(false);
+
+        if ($manifestClass && method_exists($manifestClass, 'postflight'))
+        {
+            $manifestClass->postflight('update', $installer);
+        }
+
+        $msg .= ob_get_contents(); // append messages
+        ob_end_clean();
+
+        if ($msg != '')
+        {
+            $installer->set('extension_message', $msg);
+        }
+
+        // Refresh versionable assets cache.
+        $app = JFactory::getApplication();
+
+        if (method_exists($app, 'flushAssets'))
+        {
+            $app->flushAssets();
+        }
+
+        return true;
     }
 
     /**

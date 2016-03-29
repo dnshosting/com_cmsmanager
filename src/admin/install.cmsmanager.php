@@ -2,7 +2,7 @@
 
 /**
  * @package     CMS Manager
- * @author      COLT Engine S.R.L. <andrea.sosso@dnshosting.it>
+ * @author      COLT Engine S.R.L.
  * @authorUrl   https://www.joomlahost.it
  *
  * @copyright   Copyright (C) 2015 COLT Engine s.r.l, All rights reserved.
