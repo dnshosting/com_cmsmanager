@@ -558,7 +558,9 @@ class CMSManager
         $instance->load($uid);
         @$update->loadFromXML($instance->detailsurl);
 
-        if($uid === 1 || $uid === "1")
+        // Previous versions (ie 3.0) will update to 3.2.7 first and then to 3.5
+        // So we have to use the new method only when they updated to the new intermediate version
+        if(($uid === 1 || $uid === "1") && version_compare(JVERSION, '3.2.7', 'ge'))
         {
             // install sets state and enqueues messages
             $res = $this->installJoomlaUpdate($update);
@@ -722,7 +724,7 @@ ENDDATA;
 
     /**
      * Post-update clean up
-     * 
+     *
      * @return  void
      */
     private function cleanupJoomlaUpdate()
@@ -743,24 +745,24 @@ ENDDATA;
             }
         }
     }
-    
+
     public function finaliseJoomlaUpdate()
     {
         $this->log = new CMSManagerLogger(__FUNCTION__, "", $this->store);
         $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_UPDATE');
 
         $this->log->addLog($log);
-        
+
         try{
             $this->runJoomlaUpdateScripts();
         }
         catch(Exception $e)
         {
             $log->setError($e->getMessage());
-            
+
             return false;
         }
-        
+
         return true;
     }
 
@@ -1204,12 +1206,12 @@ ENDDATA;
         try
         {
             $result = $my->fix();
-            
+
             // Sadly "fix" method returns false/null :(
             if($result === false)
             {
                 $result = false;
-                
+
                 $app = JFactory::getApplication();
                 $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_FIXDB', $app->getMessageQueue());
 
@@ -1226,7 +1228,7 @@ ENDDATA;
             $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_FIXDB', $e->getMessage());
             $this->log->addLog($log);
         }
-        
+
         return $result;
     }
 
