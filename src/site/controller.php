@@ -108,12 +108,47 @@ class CMSManagerController extends JControllerLegacy
             }
 
             $this->view->data = $container;
-        } else if ($cmd == 'discoverAndInstallExtensions') {
+        }
+        else if($cmd == 'finaliseJoomlaUpdate')
+        {
+            $container = new \stdClass();
+
+            // If anything goes wrong, return an INTERNAL_SERVER_ERROR
+            // plus some log messages
+            if (@!$cmsmanager->finaliseJoomlaUpdate()) {
+                $this->view->code = 500;
+                $container->logs = $cmsmanager->getLog()->getLogs();
+                $container->status = "KO";
+            } else {
+                $this->view->code = 200;
+                $container->logs = $cmsmanager->getLog()->getLogs();
+                $container->status = "OK";
+            }
+
+            $this->view->data = $container;
+        }
+        else if ($cmd == 'discoverAndInstallExtensions') {
             $cmsmanager->discoverExtension();
             $cmsmanager->installDiscoveredExtension();
         } else if ($cmd == 'fixDb') {
-            $cmsmanager->fixDb();
-        } else if ($cmd == 'removeExtension') {
+            $container = new \stdClass();
+
+            if(!$cmsmanager->fixDb())
+            {
+                $this->view->code = 500;
+                $container->logs = $cmsmanager->getLog()->getLogs();
+                $container->status = "KO";
+            }
+            else
+            {
+                $this->view->code = 200;
+                $container->logs = $cmsmanager->getLog()->getLogs();
+                $container->status = "OK";
+            }
+
+            $this->view->data = $container;
+        }
+        else if ($cmd == 'removeExtension') {
             $cmsmanager->removeExtension($name) ? $this->view->code = 204 : $this->view->code = 500;
         } else if ($cmd == 'enableBackup') {
             if($cmsmanager->enableBackup()) {

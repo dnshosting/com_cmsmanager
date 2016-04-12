@@ -6,6 +6,7 @@
                default=""
                label="COM_CMSMANAGER_SECRET_KEY"
                class="inputbox input-block-level"
+               description="COM_CMSMANAGER_SECRET_KEY_DESC"
                 />
 
         <field name="maintenance"
