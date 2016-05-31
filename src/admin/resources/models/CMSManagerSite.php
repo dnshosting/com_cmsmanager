@@ -120,14 +120,17 @@ class CMSManagerSite
     {
         $memory_limit = ini_get('memory_limit');
         switch (substr($memory_limit, -1)) {
+        	case 'k':
             case 'K':
                 $memory_limit = (int)$memory_limit * 1024;
                 break;
-
+                
+            case 'm':
             case 'M':
                 $memory_limit = (int)$memory_limit * 1024 * 1024;
                 break;
-
+                
+            case 'g':
             case 'G':
                 $memory_limit = (int)$memory_limit * 1024 * 1024 * 1024;
                 break;
