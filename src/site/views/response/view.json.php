@@ -62,6 +62,11 @@ class CMSManagerViewResponse extends JViewLegacy
         // Set HTTP response code
         http_response_code($this->code);
 
+        //204 no content must be set
+        if ($this->code == 204) {
+        	$this->app->close();
+        }
+        
         // Authentication error
         if ($this->code == 401) {
             header('Content-type: application/json');
