@@ -65,4 +65,15 @@
         <element>com_cmsmanager</element>
         <type>component</type>
     </update>
+    <update>
+        <name>CMS Manager</name>
+        <version>1.7.1</version>
+        <infourl title="CMS Manager">http://www.joomlahost.it</infourl>
+        <downloads>
+            <downloadurl type="full" format="zip">https://cdn.colt-engine.it/files/joomla/com_cmsmanager/com_cmsmanager.zip</downloadurl>
+        </downloads>
+        <targetplatform name="joomla" version="3.6"/>
+        <element>com_cmsmanager</element>
+        <type>component</type>
+    </update>
 </updates>
