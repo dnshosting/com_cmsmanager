@@ -21,7 +21,7 @@ JLoader::discover('', JPATH_COMPONENT_ADMINISTRATOR . DS . 'resources');
 JLoader::discover('', JPATH_COMPONENT_ADMINISTRATOR . DS . 'resources' . DS . 'exceptions');
 JLoader::discover('', JPATH_COMPONENT_ADMINISTRATOR . DS . 'resources' . DS . 'models');
 JLoader::register('CMSManagerController', JPATH_COMPONENT . DS . 'controller.php');
-JLoader::register('AdmintoolsHelperDownload', JPATH_ADMINISTRATOR . DS . 'components' . DS . 'com_joomlaupdate' . DS . 'helpers' . DS . 'download.php');
+JLoader::register('AdmintoolsHelperDownload', JPATH_COMPONENT_ADMINISTRATOR . '/resources/download.php');
 
 // Enabling the debug mode
 if (isset($_GET['debugphp'])) {
