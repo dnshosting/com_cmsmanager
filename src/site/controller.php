@@ -54,23 +54,27 @@ class CMSManagerController extends JControllerLegacy
         $app = JFactory::getApplication();
 
         $this->debug = $this->view->debug = $app->input->getBool('debug', false);
-        $cmd = $app->input->getCmd('cmd', 'status');
-        $url = $app->input->getString('url', '');
-        $store = $app->input->getBool('store', true);
-        $name = $app->input->getString('name', '');
-        $apc = $app->input->getBool('clearApc', false);
+
+        $cmd         = $app->input->getCmd('cmd', 'status');
+        $url         = $app->input->getString('url', '');
+        $store       = $app->input->getBool('store', true);
+        $name        = $app->input->getString('name', '');
+        $apc         = $app->input->getBool('clearApc', false);
 
         // Checking credentials
         $this->checkToken();
 
         // Clear APC cache
-        if($apc) {
-            if(function_exists("apc_clear_cache")) {
+        if($apc)
+        {
+            if(function_exists("apc_clear_cache"))
+            {
                 @apc_clear_cache();
                 @apc_clear_cache('user');
                 @apc_clear_cache('opcode');
             }
-            if(function_exists("opcache_reset")) {
+            if(function_exists("opcache_reset"))
+            {
                 @opcache_reset();
             }
         }
@@ -78,30 +82,44 @@ class CMSManagerController extends JControllerLegacy
         $this->cmsmanager = $cmsmanager = new CMSManager($store);
 
         // Operations dispatching
-        if ($cmd == 'status') {
+        if ($cmd == 'status')
+        {
             $this->view->data = new CMSManagerSendData();
-        } else if ($cmd == 'installSingleExtension') {
+        }
+        else if ($cmd == 'installSingleExtension')
+        {
             $cmsmanager->installSingleExtension($url);
-        } else if ($cmd == 'getInfo') {
+        }
+        else if ($cmd == 'getInfo')
+        {
             $this->view->data = new CMSManagerSite();
-        } else if ($cmd == 'installExtensions') {
+        }
+        else if ($cmd == 'installExtensions')
+        {
             $cmsmanager->installUpdate($url);
-        } else if ($cmd == 'getUpdates') {
+        }
+        else if ($cmd == 'getUpdates')
+        {
             $cmsmanager->discoverExtension();
             $clean = $name == "clean";
 
             $cmsmanager->getUpdates($clean);
             $this->view->code = 204;
-        } else if ($cmd == 'installUpdate') {
+        }
+        else if ($cmd == 'installUpdate')
+        {
             $container = new \stdClass();
 
             // If anything goes wrong, return an INTERNAL_SERVER_ERROR
             // plus some log messages
-            if (@!$cmsmanager->installUpdate($name)) {
+            if (@!$cmsmanager->installUpdate($name))
+            {
                 $this->view->code = 500;
                 $container->logs = $cmsmanager->getLog()->getLogs();
                 $container->status = "KO";
-            } else {
+            }
+            else
+            {
                 $this->view->code = 200;
                 $container->logs = $cmsmanager->getLog()->getLogs();
                 $container->status = "OK";
@@ -115,11 +133,14 @@ class CMSManagerController extends JControllerLegacy
 
             // If anything goes wrong, return an INTERNAL_SERVER_ERROR
             // plus some log messages
-            if (@!$cmsmanager->finaliseJoomlaUpdate()) {
+            if (@!$cmsmanager->finaliseJoomlaUpdate())
+            {
                 $this->view->code = 500;
                 $container->logs = $cmsmanager->getLog()->getLogs();
                 $container->status = "KO";
-            } else {
+            }
+            else
+            {
                 $this->view->code = 200;
                 $container->logs = $cmsmanager->getLog()->getLogs();
                 $container->status = "OK";
@@ -127,10 +148,13 @@ class CMSManagerController extends JControllerLegacy
 
             $this->view->data = $container;
         }
-        else if ($cmd == 'discoverAndInstallExtensions') {
+        else if ($cmd == 'discoverAndInstallExtensions')
+        {
             $cmsmanager->discoverExtension();
             $cmsmanager->installDiscoveredExtension();
-        } else if ($cmd == 'fixDb') {
+        }
+        else if ($cmd == 'fixDb')
+        {
             $container = new \stdClass();
 
             if(!$cmsmanager->fixDb())
@@ -148,17 +172,25 @@ class CMSManagerController extends JControllerLegacy
 
             $this->view->data = $container;
         }
-        else if ($cmd == 'removeExtension') {
+        else if ($cmd == 'removeExtension')
+        {
             $cmsmanager->removeExtension($name) ? $this->view->code = 204 : $this->view->code = 500;
-        } else if ($cmd == 'enableBackup') {
-            if($cmsmanager->enableBackup()) {
+        }
+        else if ($cmd == 'enableBackup')
+        {
+            if($cmsmanager->enableBackup())
+            {
                 $this->view->code = 200;
                 $this->view->data = "OK";
-            } else {
+            }
+            else
+            {
                 $this->view->code = 404;
                 $this->view->data = "COM_CMSMANAGER_AKEEBA_NOT_FOUND";
             }
-        } else {
+        }
+        else
+        {
             $this->view->code = 404;
             $this->view->data = "COM_CMSMANAGER_ACTION_NOT_FOUND";
         }
@@ -178,7 +210,9 @@ class CMSManagerController extends JControllerLegacy
         // Get the authentication key
         // or return and error response
         $key = JFactory::getApplication()->input->get('key');
-        if (empty($key)) {
+
+        if (empty($key))
+        {
             $this->view->code = 401;
             $this->view->data = "ERR_CREDENTIALS_EMPTY";
             $this->view->display();
@@ -188,24 +222,37 @@ class CMSManagerController extends JControllerLegacy
         $this->token = JComponentHelper::getParams('com_cmsmanager')->get('secret_key');
 
         // In debug, the authentication key must be in plaintext
-        if ($this->debug) {
-            if ($key != $this->token) {
+        if ($this->debug)
+        {
+            if ($key != $this->token)
+            {
                 $this->view->code = 401;
                 $this->view->data = "ERR_CREDENTIALS_BADSIGN";
                 $this->view->display();
             }
+
             return;
         }
 
         // Decoding the request payload with JWT
-        try {
+        try
+        {
             JWT::decode($key, $this->token);
-        } catch (Exception $e) {
+        }
+        catch (Exception $e)
+        {
             $this->view->code = 401;
             $this->view->data = $e->getMessage();
 
-            if ($e->getMessage() == "Expired token") $this->view->data = "ERR_CREDENTIALS_EXPIRED";
-            if ($e->getMessage() == "Signature verification failed") $this->view->data = "ERR_CREDENTIALS_BADSIGN";
+            if ($e->getMessage() == "Expired token")
+            {
+            	$this->view->data = "ERR_CREDENTIALS_EXPIRED";
+            }
+
+            if ($e->getMessage() == "Signature verification failed")
+            {
+            	$this->view->data = "ERR_CREDENTIALS_BADSIGN";
+            }
 
             $this->view->display();
         }

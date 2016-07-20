@@ -43,7 +43,7 @@ class CMSManager
      *
      * @param bool|true $store if true, the Log messages are persisted into the DB.
      */
-    function __construct($store = true)
+    public function __construct($store = true)
     {
         $this->installPath = JPATH_SITE . $this->installPath;
         $this->store = $store;
@@ -64,8 +64,10 @@ class CMSManager
      *
      * @return bool true if success, false otherwise
      */
-    public function enableBackup() {
+    public function enableBackup()
+    {
         $this->log = new CMSManagerLogger(__FUNCTION__, "", $this->store);
+
         return $this->enableAkeeebaBackup();
     }
 
@@ -74,7 +76,8 @@ class CMSManager
      *
      * @return bool true if success, false otherwise
      */
-    private function enableAkeeebaBackup() {
+    private function enableAkeeebaBackup()
+    {
 
         if ( ! file_exists(JPATH_ADMINISTRATOR . '/components/com_akeeba/version.php')) {
             $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_AKEEBA_NOT_FOUND');
@@ -171,7 +174,8 @@ class CMSManager
      * @param int $length
      * @return string
      */
-    function generateRandomString($length = 16) {
+    public function generateRandomString($length = 16)
+    {
         return substr(str_shuffle(str_repeat('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',$length)),0,$length);
     }
 
@@ -549,7 +553,10 @@ class CMSManager
      */
     public function installUpdate($uid)
     {
-        $this->log = new CMSManagerLogger(__FUNCTION__, "", $this->store);
+    	if (!$this->log)
+	    {
+	    	$this->log = new CMSManagerLogger(__FUNCTION__, "", $this->store);
+	    }
 
         /** @var JUpdate $update */
         $update = new JUpdate();
@@ -560,7 +567,7 @@ class CMSManager
 
         // Previous versions (ie 3.0) will update to 3.2.7 first and then to 3.5
         // So we have to use the new method only when they updated to the new intermediate version
-        if(($uid === 1 || $uid === "1") && version_compare(JVERSION, '3.2.7', 'ge'))
+        if(($instance->extension_id == 700) && version_compare(JVERSION, '3.2.7', 'ge'))
         {
             // install sets state and enqueues messages
             $res = $this->installJoomlaUpdate($update);
@@ -586,8 +593,11 @@ class CMSManager
         $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_UPDATE', $app->getMessageQueue());
 
         $this->log->addLog($log);
+
         if (!$res)
-            $log->setError();
+        {
+        	$log->setError();
+        }
 
         return $res;
     }
@@ -749,11 +759,12 @@ ENDDATA;
     public function finaliseJoomlaUpdate()
     {
         $this->log = new CMSManagerLogger(__FUNCTION__, "", $this->store);
-        $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_UPDATE');
+        $log       = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_UPDATE');
 
         $this->log->addLog($log);
 
-        try{
+        try
+        {
             $this->runJoomlaUpdateScripts();
         }
         catch(Exception $e)
@@ -1029,12 +1040,16 @@ ENDDATA;
     private function installSingleUpdate($update)
     {
         // Fetch download url from update site
-        if (isset($update->get('downloadurl')->_data)) {
+        if (isset($update->get('downloadurl')->_data))
+        {
             $url = trim($update->downloadurl->_data);
-        } else {
+        }
+        else
+        {
             $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_FETCH_UPDATE_URL_FAILED', $update);
             $log->setError();
             $this->log->addLog($log);
+
             return false;
         }
 
@@ -1042,10 +1057,12 @@ ENDDATA;
         $p_file = self::downloadPackage($url);
 
         // Was the package downloaded?
-        if (!$p_file) {
+        if (!$p_file)
+        {
             $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_PACKAGE_DOWNLOAD_FAILED', $url);
             $log->setError();
             $this->log->addLog($log);
+
             return false;
         }
 
@@ -1057,7 +1074,8 @@ ENDDATA;
         $pkg = $tmp_dest . '/' . $p_file;
         $package = JInstallerHelper::unpack($pkg);
 
-        if(!$package) {
+        if(!$package)
+        {
             // Add .zip extension to file
             $zip = $pkg . ".zip";
             JFile::move($pkg, $zip);
@@ -1065,7 +1083,8 @@ ENDDATA;
         }
 
         // Unpack package
-        if (!$package) {
+        if (!$package)
+        {
             $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_PACKAGE_UNPACK_FAILED', $url);
             $log->setError();
             $this->log->addLog($log);
@@ -1079,14 +1098,17 @@ ENDDATA;
 
         // Install the package
         /** @var $installer JInstaller */
-        if (!$installer->update($package['dir'])) {
+        if (!$installer->update($package['dir']))
+        {
             // There was an error updating the package
             $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_MSG_UPDATE_ERROR', $package);
             $log->setError();
             $this->log->addLog($log);
 
             $result = false;
-        } else {
+        }
+        else
+        {
             // Package updated successfully
             $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_MSG_UPDATE_SUCCESS', $package['type']);
             $this->log->addLog($log);
@@ -1095,7 +1117,8 @@ ENDDATA;
         }
 
         // Cleanup the install files
-        if (!is_file($package['packagefile'])) {
+        if (!is_file($package['packagefile']))
+        {
             $config = JFactory::getConfig();
             $package['packagefile'] = $config->get('tmp_path') . '/' . $package['packagefile'];
         }
@@ -1110,7 +1133,10 @@ ENDDATA;
      */
     public function discoverExtension()
     {
-        $this->log = new CMSManagerLogger(__FUNCTION__, "", false);
+    	if (!$this->log)
+	    {
+	    	$this->log = new CMSManagerLogger(__FUNCTION__, "", false);
+	    }
 
         $this->purgeDiscoveredExtensions();
         $this->discoverAll();
@@ -1151,29 +1177,43 @@ ENDDATA;
         $my->discover();
     }
 
-    /**
-     * Install all the discovered extensions.
-     */
-    public function installDiscoveredExtension()
+	/**
+	 * Install all the discovered extensions.
+	 *
+	 * @param array $where  Extra where that will be applied to the select to search for disable extensions
+	 */
+    public function installDiscoveredExtension(array $where = array())
     {
-        $this->log = new CMSManagerLogger(__FUNCTION__, "", $this->store);
+    	if (!$this->log)
+	    {
+	    	$this->log = new CMSManagerLogger(__FUNCTION__, "", $this->store);
+	    }
 
         $installer = JInstaller::getInstance();
 
         $db = JFactory::getDBO();
-        $query = $db->getQuery(true);
-        $query->select('*');
-        $query->from('#__extensions');
-        $query->where('state=-1');
-        $db->setQuery($query);
+        $query = $db->getQuery(true)
+	                ->select('*')
+                    ->from('#__extensions')
+                    ->where('state = -1');
 
-        $eid = $db->loadObjectList();
+	    foreach ($where as $clause)
+	    {
+	    	$query->where($clause);
+	    }
 
-        if ($eid) {
+        $eid = $db->setQuery($query)->loadObjectList();
+
+        if ($eid)
+        {
             $failed = false;
-            foreach ($eid as $id) {
+
+            foreach ($eid as $id)
+            {
                 $result = $installer->discover_install($id->extension_id);
-                if (!$result) {
+
+                if (!$result)
+                {
                     $failed = true;
 
                     $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_MSG_DISCOVER_INSTALLFAILED', $id->element);
@@ -1181,11 +1221,15 @@ ENDDATA;
                     $this->log->addLog($log);
                 }
             }
-            if (!$failed) {
+
+            if (!$failed)
+            {
                 $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_MSG_DISCOVER_INSTALLSUCCESSFUL');
                 $this->log->addLog($log);
             }
-        } else {
+        }
+        else
+        {
             $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_MSG_DISCOVER_NOEXTENSIONDETECTED');
             $log->setError();
             $this->log->addLog($log);
@@ -1228,6 +1272,45 @@ ENDDATA;
             $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_FIXDB', $e->getMessage());
             $this->log->addLog($log);
         }
+
+        // Fix for 3.6.0 installer plugin removed
+	    if ($result && version_compare(JVERSION, '3.6.0', 'ge'))
+	    {
+	    	$db = JFactory::getDbo();
+
+		    // Do I have to run?
+		    $query = $db->getQuery(true)
+			            ->select('COUNT(*)')
+			            ->from($db->qn('#__extensions'))
+			            ->where($db->qn('folder') .' = '.$db->q('installer'));
+
+		    $count = $db->setQuery($query)->loadResult();
+
+		    // Default installers are: webinstaller, folderinstaller, packageinstaller, urlinstaller
+		    if ($count < 4)
+		    {
+			    $this->discoverExtension();
+
+			    $where = array($db->qn('folder') .' = '.$db->q('installer'));
+			    $this->installDiscoveredExtension($where);
+
+			    // After installing them, I have to enable them
+			    try
+			    {
+				    $query = $db->getQuery(true)
+					    ->update($db->qn('#__extensions'))
+					    ->set($db->qn('enabled').' = '.$db->q(1))
+					    ->where($db->qn('folder') .' = '.$db->q('installer'));
+				    $db->setQuery($query)->execute();
+			    }
+			    catch (\Exception $e)
+			    {
+				    $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_FIXDB_360_FIX', $e->getMessage());
+				    $this->log->addLog($log);
+			    	$result = false;
+			    }
+		    }
+	    }
 
         return $result;
     }
