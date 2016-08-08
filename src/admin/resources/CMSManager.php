@@ -782,59 +782,33 @@ ENDDATA;
         JLoader::import('joomla.installer.install');
         $installer = JInstaller::getInstance();
 
-        $sourcePath = JPATH_ROOT;
+	    $manifest = $installer->isManifest(JPATH_MANIFESTS . '/files/joomla.xml');
 
-        $cachedManifest = $installer->isManifest(JPATH_MANIFESTS . '/files/joomla.xml');
+	    if ($manifest === false)
+	    {
+		    $installer->abort(JText::_('JLIB_INSTALLER_ABORT_DETECTMANIFEST'));
 
-        if ($cachedManifest !== false)
-        {
-            $installer->manifest = $cachedManifest;
-            $installer->setPath('manifest', JPATH_MANIFESTS . '/files/joomla.xml');
-            $sourcePath = JPATH_MANIFESTS . '/files';
-        }
+		    return false;
+	    }
 
-        $installer->setUpgrade(true);
-        $installer->setOverwrite(true);
+	    $installer->manifest = $manifest;
 
-        $installer->setPath('source', $sourcePath);
-        $installer->setPath('extension_root', JPATH_ROOT);
+	    $installer->setUpgrade(true);
+	    $installer->setOverwrite(true);
 
-        if (!$installer->setupInstall())
-        {
-            $installer->abort(JText::_('JLIB_INSTALLER_ABORT_DETECTMANIFEST'));
+	    $installer->extension = JTable::getInstance('extension');
+	    $installer->extension->load(700);
 
-            throw new Exception(JText::_('JLIB_INSTALLER_ABORT_DETECTMANIFEST'));
-        }
+	    $installer->setAdapter($installer->extension->type);
 
-        $installer->extension = JTable::getInstance('extension');
-        $installer->extension->load(700);
-        $installer->setAdapter($installer->extension->type);
+	    $installer->setPath('manifest', JPATH_MANIFESTS . '/files/joomla.xml');
+	    $installer->setPath('source', JPATH_MANIFESTS . '/files');
+	    $installer->setPath('extension_root', JPATH_ROOT);
 
-        $manifest = $installer->getManifest();
+	    // Run the script file.
+	    JLoader::register('JoomlaInstallerScript', JPATH_ADMINISTRATOR . '/components/com_admin/script.php');
 
-        $manifestPath = JPath::clean($installer->getPath('manifest'));
-        $element = preg_replace('/\.xml/', '', basename($manifestPath));
-
-        // Run the script file
-        $manifestScript = (string)$manifest->scriptfile;
-
-        if ($manifestScript)
-        {
-            $manifestScriptFile = JPATH_ROOT . '/' . $manifestScript;
-
-            if (is_file($manifestScriptFile))
-            {
-                // load the file
-                include_once $manifestScriptFile;
-            }
-
-            $classname = 'JoomlaInstallerScript';
-
-            if (class_exists($classname))
-            {
-                $manifestClass = new $classname($installer);
-            }
-        }
+	    $manifestClass = new JoomlaInstallerScript;
 
         ob_start();
         ob_implicit_flush(false);
@@ -882,8 +856,6 @@ ENDDATA;
         }
 
         $id = $db->loadResult();
-
-        /** @var JTableExtension $row */
         $row = JTable::getInstance('extension');
 
         if ($id)
@@ -913,6 +885,7 @@ ENDDATA;
             $row->set('name', 'files_joomla');
             $row->set('type', 'file');
             $row->set('element', 'joomla');
+
             // There is no folder for files so leave it blank
             $row->set('folder', '');
             $row->set('enabled', 1);
@@ -941,20 +914,14 @@ ENDDATA;
             $installer->pushStep(array('type' => 'extension', 'extension_id' => $row->extension_id));
         }
 
-        /*
-         * Let's run the queries for the file
-         */
-        if ($manifest->update)
+        $result = $installer->parseSchemaUpdates($manifest->update->schemas, $row->extension_id);
+
+        if ($result === false)
         {
-            $result = $installer->parseSchemaUpdates($manifest->update->schemas, $row->extension_id);
+            // Install failed, rollback changes
+            $installer->abort(JText::sprintf('JLIB_INSTALLER_ABORT_FILE_UPDATE_SQL_ERROR', $db->stderr(true)));
 
-            if ($result === false)
-            {
-                // Install failed, rollback changes
-                $installer->abort(JText::sprintf('JLIB_INSTALLER_ABORT_FILE_UPDATE_SQL_ERROR', $db->stderr(true)));
-
-                throw new Exception(JText::sprintf('JLIB_INSTALLER_ABORT_FILE_UPDATE_SQL_ERROR', $db->stderr(true)));
-            }
+            throw new Exception(JText::sprintf('JLIB_INSTALLER_ABORT_FILE_UPDATE_SQL_ERROR', $db->stderr(true)));
         }
 
         // Start Joomla! 1.6
@@ -972,29 +939,14 @@ ENDDATA;
             }
         }
 
-        $msg .= ob_get_contents(); // append messages
+	    // Append messages.
+        $msg .= ob_get_contents();
         ob_end_clean();
-
-        // Lastly, we will copy the manifest file to its appropriate place IF it's not already in the manifest cache
-        $manifest = array();
-        $manifest['src'] = $installer->getPath('manifest');
-        $manifest['dest'] = JPATH_MANIFESTS . '/files/' . basename($installer->getPath('manifest'));
-
-        $cleanSource = JPath::clean($manifest['src']);
-        $cleanDest   = JPath::clean($manifest['dest']);
-
-        if (($cleanSource != $cleanDest) && !$installer->copyFiles(array($manifest), true))
-        {
-            // Install failed, rollback changes
-            $installer->abort(JText::_('JLIB_INSTALLER_ABORT_FILE_INSTALL_COPY_SETUP'));
-
-            throw new Exception(JText::_('JLIB_INSTALLER_ABORT_FILE_INSTALL_COPY_SETUP'));
-        }
 
         // Clobber any possible pending updates
         $update = JTable::getInstance('update');
         $uid = $update->find(
-            array('element' => $element, 'type' => 'file', 'client_id' => '', 'folder' => '')
+            array('element' => 'joomla', 'type' => 'file', 'client_id' => '', 'folder' => '')
         );
 
         if ($uid)
@@ -1011,8 +963,9 @@ ENDDATA;
             $manifestClass->postflight('update', $installer);
         }
 
-        $msg .= ob_get_contents(); // append messages
-        ob_end_clean();
+	    // Append messages.
+	    $msg .= ob_get_contents();
+	    ob_end_clean();
 
         if ($msg != '')
         {
@@ -1273,11 +1226,42 @@ ENDDATA;
             $this->log->addLog($log);
         }
 
+        // Controlla se l'update site per com_joomlaupdate è effettivamente installato
+	    $db = JFactory::getDbo();
+	    $query = $db->getQuery(true)
+				    ->select('count(*)')
+				    ->from('#__update_sites')
+				    ->where($db->qn('name').' = '.$db->q('Joomla! Update Component Update Site'));
+
+	    if (!$db->setQuery($query)->loadResult())
+	    {
+	    	try
+		    {
+			    $query = $db->getQuery(true)
+				    ->insert($db->qn('#__update_sites'))
+				    ->columns(array(
+					    $db->qn('name'),
+					    $db->qn('type'),
+					    $db->qn('location'),
+					    $db->qn('enabled')
+				    ))
+				    ->values($db->q('Joomla! Update Component Update Site') . ", " . $db->q('extension') . ", " . $db->q('http://update.joomla.org/core/extensions/com_joomlaupdate.xml') . ", " . $db->q(1));
+			    $db->setQuery($query)->execute();
+
+			    $db->setQuery("INSERT INTO `#__update_sites_extensions` (`update_site_id`, `extension_id`) VALUES
+((SELECT `update_site_id` FROM `#__update_sites` WHERE `name` = 'Joomla! Update Component Update Site'), (SELECT `extension_id` FROM `#__extensions` WHERE `name` = 'com_joomlaupdate'));");
+			    $db->execute();
+		    }
+		    catch (Exception $e)
+		    {
+			    $log = new CMSManagerLog(__FUNCTION__, 'COM_CMSMANAGER_FIXDB_JOOMLAUPDATE_FIX', $e->getMessage());
+			    $this->log->addLog($log);
+		    }
+	    }
+
         // Fix for 3.6.0 installer plugin removed
 	    if ($result && version_compare(JVERSION, '3.6.0', 'ge'))
 	    {
-	    	$db = JFactory::getDbo();
-
 		    // Do I have to run?
 		    $query = $db->getQuery(true)
 			            ->select('COUNT(*)')
@@ -1357,10 +1341,14 @@ ENDDATA;
 
                 if ($elem->type == 'file') continue;
 
-                if (!property_exists($manifest, "authorEmail")
-                    || (property_exists($manifest, "authorEmail") && $manifest->authorEmail != "admin@joomla.org")
-                    || $elem->type == "template"
-                    || $elem->element == "pkg_weblinks") {
+                if (
+                	!property_exists($manifest, "authorEmail") ||
+                    (property_exists($manifest, "authorEmail") && $manifest->authorEmail != "admin@joomla.org") ||
+                    $elem->type == "template" ||
+                    $elem->element == "pkg_weblinks" ||
+	                $elem->element == 'com_joomlaupdate'
+                )
+                {
 
                     $ver = $manifest->version;
 
